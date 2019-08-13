@@ -26,18 +26,39 @@ type Stack = [Instruction]
 -- Funciones para evaluar expresiones
 -- Aritméticas
 arithOperation :: Instruction -> Instruction -> Instruction -> Instruction
+arithOperation (I a) (I b) ADD = I (a + b)
+arithOperation (I a) (I b) DIV = if b /= 0 then I (a / b) else error "Division by zero"
+arithOperation (I a) (I b) REM = if b /= 0 then I (a % b) else error "Division by zero"
+arithOperation (I a) (I b) MUL = I (a * b)
+arithOperation (I a) (I b) SUB = I (a - b)
+arithOperation _ _ _ = error "Invalid arithmetic parameters"
 
 -- Booleanas binarias
 bboolOPeration :: Instruction -> Instruction -> Instruction -> Instruction
+bboolOPeration (B p) (B q) AND = B (p && q)
+bboolOPeration _ _ = error "Invalid boolean parameter"
 
 -- Booleana unarias
 uboolOperation :: Instruction -> Instruction -> Instruction
+uboolOperation (B p) NOT = B (!p)
+uboolOPeration _ _ = error "Invalid boolean parameter"
 
 -- Comparaciones
 relOperation :: Instruction -> Instruction -> Instruction -> Instruction
+relOperation (I a) (I b) Eq = B (a == b)
+relOperation (I a) (I b) Gt = B (a > b)
+relOperation (I a) (I b) Lt = B (a < b)
+relOperation _ _ _ = error "Invalid comparaison parameters"
 
 -- Manipulación de la pila
-stackOPeration :: Stack -> Instruction -> Stack
+stackOperation :: Stack -> Instruction -> Stack
+stackOperation xs x@(I a) = (x:xs)
+stackOperation xs x@(B p) = (x:xs)
+stackOperation (y:ys) POP = ys
+stackOperation (x:y:ys) SWAP = (y:x:ys)
+stackOperation (x:y:(B p):ys) SEL = if p then (x:ys) else (y:ys)
+stackOperation ((I y):ys) GET = (y!!ys:ys)
+stackOperation xs (ES is) = foldr (stackOperation xs) [] is
 
 -- Ejecuciones de instrucciones
 execOperation :: [Instruction] -> Stack -> Instruction -> ([Instruction], Stack)
@@ -47,9 +68,11 @@ type Program = [Instruction]
 
 -- Ejecutar programa
 executeProgram :: Program -> Stack -> Stack
+executeProgram pr st = stackOperation st (ES pr)
 
 -- Compilador (interprete)
 compile :: Expr -> Program
 
 -- Ejecutar (interpretar) una expresión
 execute :: Expr -> Instruction
+execute e = executeProgram (compile e)
