@@ -1,5 +1,5 @@
 {--
-Interprete de un lenguaje de expreiones aritméticas y boolenanas.
+Interprete de un lenguaje de expresiones aritméticas y boolenanas.
 --}
 module EAB where
         -- Sintáxis
@@ -16,7 +16,7 @@ module EAB where
 
         -- Instrucciones
         data Instruction = I Int | B Bool
-                        | ADD | AND | DIV | Eq | EXEC | GET | Gt | Lt
+                        | ADD | AND | DIV | EQ | EXEC | GET | Gt | Lt
                         | MUL | NOT | POP | REM | SEL | SUB | SWAP | ES [Instruction]
 
         -- Semántica
@@ -36,7 +36,7 @@ module EAB where
         -- Booleanas binarias
         bboolOPeration :: Instruction -> Instruction -> Instruction -> Instruction
         bboolOPeration (B p) (B q) AND = B (p && q)
-        bboolOPeration _ _ = error "Invalid boolean parameter"
+        bboolOPeration _ _ _ = error "Invalid boolean parameterS"
 
         -- Booleana unarias
         uboolOperation :: Instruction -> Instruction -> Instruction
@@ -45,7 +45,7 @@ module EAB where
 
         -- Comparaciones
         relOperation :: Instruction -> Instruction -> Instruction -> Instruction
-        relOperation (I a) (I b) Eq = B (a == b)
+        relOperation (I a) (I b) EQ = B (a == b)
         relOperation (I a) (I b) Gt = B (a > b)
         relOperation (I a) (I b) Lt = B (a < b)
         relOperation _ _ _ = error "Invalid comparaison parameters"
@@ -58,12 +58,12 @@ module EAB where
         stackOperation (x:y:ys) SWAP = (y:x:ys)
         stackOperation (x:y:(B p):ys) SEL = if p then (x:ys) else (y:ys)
         stackOperation ((I y):ys) GET = (y!!ys:ys)
-        stackOperation xs (ES is) = foldr (\inst stk -> stackOperation stk inst) [] is
+        stackOperation xs x@(ES p) = (x:xs)
         stackOperation _ _ = error "Invalid stack"
 
-        -- Ejecuciones de instrucciones
+        -- Ejecuciones de secuencias ejecutables (subrutinas)
         execOperation :: [Instruction] -> Stack -> Instruction -> ([Instruction], Stack)
-        execOperation xs ((ES is):stks) EXEC = (is ++ xs, stks)
+        execOperation pr ((ES sr):stk) EXEC = (sr ++ pr, stk)
         execOperation _ _ _ = error "Invalid exec operation"
 
         -- Programas
@@ -71,11 +71,40 @@ module EAB where
 
         -- Ejecutar programa
         executeProgram :: Program -> Stack -> Stack
-        executeProgram pr st = stackOperation st (ES pr)
+        executeProgram pr st =
 
         -- Compilador (interprete)
         compile :: Expr -> Program
+        compile (N n) = [I n]
+        compile T = [B True]
+        compile F = [B False]
+        compile (Succ e) = (compile e) ++ [I 1, ADD]
+        compile (Pred e) = (compile e) ++ [I 1, SUB]
+        compile (e1 :+ e2) = (compile e1) ++ (compile e2) ++ [ADD]
+        compile (e1 :- e2) = (compile e1) ++ (compile e2) ++ [SUB]
+        compile (e1 :* e2) = (compile e1) ++ (compile e2) ++ [MUL]
+        compile (e1 :/ e2) = (compile e1) ++ (compile e2) ++ [DIV]
+        compile (e1 :% e2) = (compile e1) ++ (compile e2) ++ [REM]
+        compile (Not e) = (compile e) ++ [NOT]
+        compile (e1 :& e2) = (compile e1) ++ (compile e2) ++ [AND]
+        compile (e1 :| e2) = compile (Not ((Not e1) :& (Not e2)))
+        compile (e1 :< e2) = (compile e1) ++ (compile e2) ++ [Lt]
+        compile (e1 :> e2) = (compile e1) ++ (compile e2) ++ [Gt]
+        compile (e1 := e2) = (compile e1) ++ (compile e2) ++ [EQ]
+        compile (e1 :^ e2) = expComp e1 e2
+        compile (Max e1 e2) = r1 ++ r2 ++ r1 ++ r2 ++ [Gt, SEL]
+                              where r1 = compile e1; r2 = compile e2
+        compile (Min e1 e2) = r1 ++ r2 ++ r1 ++ r2 ++ [Lt, SEL]
+                              where r1 = compile e1; r2 = compile e2
 
-        -- Ejecutar (interpretar) una expresión
+        -- Funciones auxiliares para compilar expresiones
+        expComp :: Expr -> Expr -> Program
+
+        facComp :: Expr -> Program
+
+        -- Ejecutar (evaluar) una expresión
         execute :: Expr -> Instruction
-        execute e = executeProgram (compile e)
+        execute e = case s of
+                      r:[] -> r
+                      _ -> error "Invalid final value"
+                    where s = executeProgram (compile e)
