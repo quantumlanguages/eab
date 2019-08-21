@@ -36,14 +36,14 @@ module EAB where
         arithOperation _ _ _ = error "Invalid arithmetic parameters"
 
         -- Booleanas binarias
-        bboolOPeration :: Instruction -> Instruction -> Instruction -> Instruction
-        bboolOPeration (B p) (B q) AND = B (p && q)
-        bboolOPeration _ _ _ = error "Invalid boolean parameterS"
+        bboolOperation :: Instruction -> Instruction -> Instruction -> Instruction
+        bboolOperation (B p) (B q) AND = B (p && q)
+        bboolOperation _ _ _ = error "Invalid boolean parameterS"
 
         -- Booleana unarias
         uboolOperation :: Instruction -> Instruction -> Instruction
         uboolOperation (B p) NOT = B (not p)
-        uboolOPeration _ _ = error "Invalid boolean parameter"
+        uboolOperation _ _ = error "Invalid boolean parameter"
 
         -- Comparaciones
         relOperation :: Instruction -> Instruction -> Instruction -> Instruction
@@ -73,7 +73,30 @@ module EAB where
 
         -- Ejecutar programa
         executeProgram :: Program -> Stack -> Stack
-        executeProgram pr st =
+        --Creo es algo así
+        --La idea era que recibiera los programas y llamara a las funciones correspondientes con el stack 
+        executeProgram ((ADD): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (ADD)) : ys))
+        executeProgram ((DIV): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (DIV)) : ys))
+        executeProgram ((REM): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (REM)) : ys))
+        executeProgram ((MUL): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (MUL)) : ys))
+        executeProgram ((SUB): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (SUB)) : ys))
+        executeProgram ((AND): xs) ((B n) : (B m) : ys) = (executeProgram (xs)  ((bboolOperation (B n) (B m) (AND)) : ys))
+        executeProgram ((NOT): xs) ((B n) : ys) = (executeProgram (xs)  ((uboolOperation (B n) (NOT)) : ys))
+        executeProgram ((Eq): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Eq)) : ys))
+        executeProgram ((Gt): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Gt)) : ys))
+        executeProgram ((Lt): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Lt)) : ys))
+        executeProgram ((Eq): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Eq)) : ys))
+        ---Apartir de aqui ya no se que hago :c
+        executeProgram ((I): xs) ((I n) : ys) = (executeProgram (xs)  ((stackOperation ((I n):xs)) (I): ys))
+        executeProgram ((B): xs) ((B n) : ys) = (executeProgram (xs)  ((stackOperation ((B n):xs)) (B): ys))
+        executeProgram ((POP): xs) (y : ys) = (executeProgram (xs)  ((stackOperation ((y : ys) (POP): ys))
+        executeProgram ((SWAP): xs) (x: y : ys) = (executeProgram (xs)  ((stackOperation ((x : y : ys) (SWAP): ys))))
+        executeProgram ((SEL): xs) (x: y: (B p) : ys) = (executeProgram (xs)  ((stackOperation ((x: y: (B p) : ys)(SEL): ys))))
+        executeProgram ((GET): xs) ((I y) : ys) = (executeProgram (xs)  ((stackOperation (((I y) : ys)(GET): ys))))
+        executeProgram ((ES): xs) (y : ys) = (executeProgram (xs)  ((stackOperation ((y : ys)(ES): ys))))
+        executeProgram ((EXEC): xs) (y : ys) = (executeProgram (xs)  ((execOperation ((y : ys)(EXEC): ys))))
+        --Chiste de compensación: ¿Cuál es el pez que huele mucho? El Peztoso *ba dum tss*
+
 
         -- Compilador (interprete)
         compile :: Expr -> Program
