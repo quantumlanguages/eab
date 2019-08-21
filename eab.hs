@@ -56,10 +56,14 @@ module EAB where
         stackOperation :: Stack -> Instruction -> Stack
         stackOperation xs x@(I a) = (x:xs)
         stackOperation xs x@(B p) = (x:xs)
-        stackOperation (y:ys) POP = ys
-        stackOperation (x:y:ys) SWAP = (y:x:ys)
+        stackOperation (x:xs) POP = xs
+        stackOperation (x:y:xs) SWAP = (y:x:xs)
         stackOperation (x:y:(B p):ys) SEL = if p then (y:ys) else (x:ys)
-        stackOperation ((I y):ys) GET = ((ys!!y):ys)
+        stackOperation ((I y):ys) GET =
+          if 0 <= k && k < length ys
+            then (ys!!k:ys)
+            else error "Index not found"
+          where k = y-1
         stackOperation xs x@(ES p) = (x:xs)
         stackOperation _ _ = error "Invalid stack"
 
@@ -74,27 +78,27 @@ module EAB where
         -- Ejecutar programa
         executeProgram :: Program -> Stack -> Stack
         --Creo es algo así
-        --La idea era que recibiera los programas y llamara a las funciones correspondientes con el stack 
-        executeProgram ((ADD): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (ADD)) : ys))
-        executeProgram ((DIV): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (DIV)) : ys))
-        executeProgram ((REM): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (REM)) : ys))
-        executeProgram ((MUL): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (MUL)) : ys))
-        executeProgram ((SUB): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((arithOperation (I n) (I m) (SUB)) : ys))
-        executeProgram ((AND): xs) ((B n) : (B m) : ys) = (executeProgram (xs)  ((bboolOperation (B n) (B m) (AND)) : ys))
-        executeProgram ((NOT): xs) ((B n) : ys) = (executeProgram (xs)  ((uboolOperation (B n) (NOT)) : ys))
-        executeProgram ((Eq): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Eq)) : ys))
-        executeProgram ((Gt): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Gt)) : ys))
-        executeProgram ((Lt): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Lt)) : ys))
-        executeProgram ((Eq): xs) ((I n) : (I m) : ys) = (executeProgram (xs)  ((relOperation (I n) (I m) (Eq)) : ys))
-        ---Apartir de aqui ya no se que hago :c
-        executeProgram ((I): xs) ((I n) : ys) = (executeProgram (xs)  ((stackOperation ((I n):xs)) (I): ys))
-        executeProgram ((B): xs) ((B n) : ys) = (executeProgram (xs)  ((stackOperation ((B n):xs)) (B): ys))
-        executeProgram ((POP): xs) (y : ys) = (executeProgram (xs)  ((stackOperation ((y : ys) (POP): ys))
-        executeProgram ((SWAP): xs) (x: y : ys) = (executeProgram (xs)  ((stackOperation ((x : y : ys) (SWAP): ys))))
-        executeProgram ((SEL): xs) (x: y: (B p) : ys) = (executeProgram (xs)  ((stackOperation ((x: y: (B p) : ys)(SEL): ys))))
-        executeProgram ((GET): xs) ((I y) : ys) = (executeProgram (xs)  ((stackOperation (((I y) : ys)(GET): ys))))
-        executeProgram ((ES): xs) (y : ys) = (executeProgram (xs)  ((stackOperation ((y : ys)(ES): ys))))
-        executeProgram ((EXEC): xs) (y : ys) = (executeProgram (xs)  ((execOperation ((y : ys)(EXEC): ys))))
+        --La idea era que recibiera los programas y llamara a las funciones correspondientes con el stack
+        executeProgram (ADD:xs) (n:m:ys) = executeProgram xs  ((arithOperation m n ADD) : ys)
+        executeProgram (DIV:xs) (n:m:ys) = executeProgram xs  ((arithOperation m n DIV) : ys)
+        executeProgram (REM:xs) (n:m:ys) = executeProgram xs  ((arithOperation m n REM) : ys)
+        executeProgram (MUL:xs) (n:m:ys) = executeProgram xs  ((arithOperation m n MUL) : ys)
+        executeProgram (SUB:xs) (n:m:ys) = executeProgram xs  ((arithOperation m n SUB) : ys)
+        executeProgram (AND:xs) (n:m:ys) = executeProgram xs  ((bboolOperation n m AND) : ys)
+        executeProgram (Eq:xs) (n:m:ys) = executeProgram xs  ((relOperation m n Eq) : ys)
+        executeProgram (Gt:xs) (n:m:ys) = executeProgram xs  ((relOperation m n Gt) : ys)
+        executeProgram (Lt:xs) (n:m:ys) = executeProgram xs  ((relOperation m n Lt) : ys)
+        executeProgram (NOT:xs) (n:ys) = executeProgram xs  ((uboolOperation n NOT) : ys)
+        executeProgram (POP:xs) ys = executeProgram xs (stackOperation ys POP)
+        executeProgram ((I n):xs) ys = executeProgram xs (stackOperation ys (I n))
+        executeProgram ((B b):xs) ys = executeProgram xs (stackOperation ys (B b))
+        executeProgram (SWAP:xs) ys = executeProgram xs (stackOperation ys SWAP)
+        executeProgram (SEL:xs) ys = executeProgram xs  (stackOperation ys SEL)
+        executeProgram (GET:xs) ys = executeProgram xs (stackOperation ys GET)
+        executeProgram ((ES es): xs) ys = (executeProgram (xs) ((stackOperation ys (ES es))))
+        executeProgram ((EXEC): xs) ys = (executeProgram xs' ys') where (xs', ys') = execOperation xs ys EXEC
+        executeProgram [] ys = ys
+        executeProgram _ _ = error "Invalid operation structure"
         --Chiste de compensación: ¿Cuál es el pez que huele mucho? El Peztoso *ba dum tss*
 
 
@@ -117,26 +121,35 @@ module EAB where
         compile (e1 :> e2) = (compile e1) ++ (compile e2) ++ [Gt]
         compile (e1 := e2) = (compile e1) ++ (compile e2) ++ [Eq]
         compile (e1 :^ e2) = expComp (compile e1) (compile e2)
-        compile (Max e1 e2) = [I 3, GET, I 2, GET] ++ r1 ++ r2 ++ [Gt, SEL]
-                              where r1 = compile e1; r2 = compile e2
-        compile (Min e1 e2) = [I 3, GET, I 2, GET] ++ r1 ++ r2 ++ [Lt, SEL]
-                              where r1 = compile e1; r2 = compile e2
+        compile (Max e1 e2) = compr (compile e1) (compile e2) Gt
+        compile (Min e1 e2) = compr (compile e1) (compile e2) Lt
         compile (Fact e1) = factComp (compile e1)
+
+        compr :: Program -> Program -> Instruction -> Program
+        compr r1 r2 ins = r2 ++ r1 -- Añadiendo programa de las expresiones
+                          ++ [I 2, GET, I 2, GET] -- Respaldando valores
+                          ++ [ins] -- Instrucción de comparación
+                          ++ [I 3, GET, I 3, GET] -- Preparando parametros para la selección
+                          ++ [
+                            SEL, -- selección
+                            SWAP, POP, SWAP, POP -- Eliminando respaldo de valores
+                          ]
 
         -- Funciones auxiliares para compilar expresiones
         expComp :: Program -> Program -> Program
         expComp p1 p2 = p1 ++ p2 ++ [
                 ES [I 2, GET, -- respaldar r2
                         I 1, Lt, -- calcular r2 < 1
-                       ES [POP, POP, POP, I 1], -- caso base, regresa 1, elimina código extra
+                        ES [POP, POP, POP, I 1], -- caso base, regresa 1, elimina código extra
                         ES [SWAP, I 1, SUB, -- r2
-                        I 2, GET, SWAP, -- preparando parametros para caso recursivo,
-                        I 2, GET, -- preparando código de llamada recursiva
+                        I 3, GET, SWAP, -- preparando parametros para caso recursivo,
+                        I 3, GET, -- respaldar el segundo bloque
+                        I 1, GET, -- obtiene el que se ejecutará
                         EXEC, -- llamada recursiva
                         SWAP, POP, -- eliminando copia de código de la llamada recursiva
                         MUL -- calculando r1^r2 = r1^{r2-1} * r1
                         ], -- caso recursivo
-                         SEL, EXEC -- revisa r2 < 1 y selecciona bloque a ejecutar
+                        SEL, EXEC -- revisa r2 < 1 y selecciona bloque a ejecutar
                         ]
                 , I 1, GET, EXEC -- llamada por primera vez a la función
                 ]
@@ -163,4 +176,4 @@ module EAB where
         execute e = case s of
                       r:[] -> r
                       _ -> error "Invalid final value"
-                    where s = executeProgram (compile e)
+                    where s = executeProgram (compile e) []
