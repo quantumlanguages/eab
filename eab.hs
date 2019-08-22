@@ -154,6 +154,16 @@ module EAB where
         compile (Min e1 e2) = compr (compile e1) (compile e2) Lt
         compile (Fact e1) = factComp (compile e1)
 
+        compr :: Program -> Program -> Instruction -> Program
+        compr r1 r2 ins = r2 ++ r1 -- Añadiendo programa de las expresiones
+                          ++ [I 2, GET, I 2, GET] -- Respaldando valores
+                          ++ [ins] -- Instrucción de comparación
+                          ++ [I 3, GET, I 3, GET] -- Preparando parametros para la selección
+                          ++ [
+                            SEL, -- selección
+                            SWAP, POP, SWAP, POP -- Eliminando respaldo de valores
+                          ]
+
         -- Funciones auxiliares para compilar expresiones
         -- Funcion auxiliar que nos permite compilar la comparación de dos elementos
         compr :: Program -> Program -> Instruction -> Program
