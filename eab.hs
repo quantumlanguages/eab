@@ -74,19 +74,19 @@ module EAB where
         stackOperation :: Stack -> Instruction -> Stack
         stackOperation xs x@(I _) = (x:xs)
         stackOperation xs x@(B _) = (x:xs)
-        stackOperation stk POP = 
+        stackOperation stk POP =
                 case stk of
                         (_:ys) -> ys
-                        _ -> error "no enough paramenters for a pop"
-        stackOperation stk SWAP = 
+                        _ -> error "Not enough paramenters for a pop"
+        stackOperation stk SWAP =
                 case stk of
                         (x:y:ys) -> (y:x:ys)
-                        _ -> error "no enough paramenters for a swap"
-        stackOperation stk SEL = 
+                        _ -> error "Not enough paramenters for a swap"
+        stackOperation stk SEL =
                 case stk of
                         (x:y:(B p):ys) -> if p then (y:ys) else (x:ys)
-                        (x:y:z:ys) -> error "invalid boolean value in sel"
-                        _ -> error "not enough parameters for a sel"
+                        (x:y:z:ys) -> error "Invalid boolean value in sel"
+                        _ -> error "Not enough parameters for a sel"
         stackOperation ((I y):ys) GET =
                 if 0 <= k && k < length ys
                   then (ys!!k:ys)
@@ -153,16 +153,6 @@ module EAB where
         compile (Max e1 e2) = compr (compile e1) (compile e2) Gt
         compile (Min e1 e2) = compr (compile e1) (compile e2) Lt
         compile (Fact e1) = factComp (compile e1)
-
-        compr :: Program -> Program -> Instruction -> Program
-        compr r1 r2 ins = r2 ++ r1 -- Añadiendo programa de las expresiones
-                          ++ [I 2, GET, I 2, GET] -- Respaldando valores
-                          ++ [ins] -- Instrucción de comparación
-                          ++ [I 3, GET, I 3, GET] -- Preparando parametros para la selección
-                          ++ [
-                            SEL, -- selección
-                            SWAP, POP, SWAP, POP -- Eliminando respaldo de valores
-                          ]
 
         -- Funciones auxiliares para compilar expresiones
         -- Funcion auxiliar que nos permite compilar la comparación de dos elementos
